@@ -46,6 +46,27 @@ func Import() {
 	}
 }
 
+func Metrics() {
+	query := `match (s:Suplier)-[:payment]->(e:Event)<-[:payment]-(o:Order), (e)-[:at_date]->(d:Date)
+	with  s,count(o.id) as os, d
+	
+	match (s)-[:processing]->(e:Event)<-[:processing]-(o:Order),(e)-[:at_date]->(d)
+	with d.date as calculated_at, s.id as supplier_id, (os*100)/count(o) as acceptance_ratio,d,s
+	
+	MATCH (o:Order)-[:updated]->(e:Event)<-[:updated]-(s), (e)-[:at_date]->(d)
+	WHERE NOT (o)-[:deleted]->(:Event)
+	with s,d,sum(toint(e.review_value_speed)) as rvs,count(e.review_value_speed) as crvw,calculated_at,supplier_id,acceptance_ratio
+	
+	MATCH (o:Order)-[:created]->(e:Event), (e)-[:at_date]->(d)
+	WHERE NOT (o)-[:updated]->(:Event)
+	
+	return d.date as calculated_at, s.id as supplier_id,(rvs+sum(toint(e.review_value_speed))) / (crvw+count(e.review_value_speed)) as review, 
+	acceptance_ratio+"%" order by d.date`
+
+	getRowData(query)
+
+}
+
 func getDataFromSQL() *sql.Rows {
 	db, err := sql.Open("sqlite3", "./data/database.db")
 	if err != nil {
@@ -95,8 +116,8 @@ func loadIntoNeo4j(d *SQLData) {
 		query := `MERGE (s:Suplier{id: "` + d.SupplierID + `"})
 		MERGE (o:Order{id: "` + d.OrderID + `"})
 		MERGE (d:Date{date: "` + dt + `"})
-		MERGE (e:Event{timestamp: "` + d.Timestamp.String() + `", price_customer: "` + d.PriceCustomer + `", order_station_type: "` + d.OrderStationType + `",
-			order_station_model: "` + d.OrderStationModel + `", 
+		MERGE (e:Event{timestamp: "` + d.Timestamp.String() + `", price_customer: "` + d.PriceCustomer + `", 
+			order_station_type: "` + d.OrderStationType + `",order_station_model: "` + d.OrderStationModel + `", 
 			context_traits_id: "` + d.ContextTraitsUID + `", review_value_speed: "` + d.ReviewValueSpeed + `", 
 			context_traits_persona: "` + d.ContextTraitsPersona + `", order_station_manufacturer: "` + d.OrderStationManufacterer + `"})
 		MERGE (o)-[:` + e + `]->(e)<-[:` + e + `]-(s)
@@ -104,10 +125,6 @@ func loadIntoNeo4j(d *SQLData) {
 		`
 
 		stmt := prepareStatement(query, conn)
-
-		// strmap := map[string]interface{}{"ts": d.Timestamp, "pc": d.PriceCustomer, "ost": d.OrderStationType,
-		// 	"osm": d.OrderStationModel, "ctid": d.ContextTraitsUID, "rvs": d.ReviewValueSpeed, "ctp": d.ContextTraitsPersona,
-		// 	"ostm": d.OrderStationManufacterer}
 
 		_, err := stmt.ExecNeo(map[string]interface{}{})
 		if err != nil {

@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"fmt"
 	"io"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
@@ -42,15 +43,23 @@ func queryStatement(st bolt.Stmt) bolt.Rows {
 
 	return rows
 }
-func consumeRows(rows bolt.Rows, st bolt.Stmt) []interface{} {
+func consumeRows(rows bolt.Rows, st bolt.Stmt) {
 	// This interface allows you to consume rows one-by-one, as they
 	// come off the bolt stream. This is more efficient especially
 	// if you're only looking for a particular row/set of rows, as
 	// you don't need to load up the entire dataset into memory
-	data, _, err := rows.NextNeo()
-	handleError(err)
-
-	return data
+	var err error
+	err = nil
+	fmt.Println("calculated_at | supplier_id | review | acceptance_ratio")
+	for err == nil {
+		var row []interface{}
+		row, _, err = rows.NextNeo()
+		if err != nil && err != io.EOF {
+			panic(err)
+		} else if err != io.EOF {
+			fmt.Printf("%+v\n", row) // Prints all paths
+		}
+	}
 }
 func consumePathData(rows bolt.Rows, st bolt.Stmt) []graph.Path {
 	// Here we loop through the rows until we get the metadata object
@@ -83,11 +92,10 @@ func getPathData(query string) []graph.Path {
 	return p
 }
 
-func getRowData(query string) []interface{} {
+func getRowData(query string) {
 	st := prepareStatement(query, conn)
 	rows := queryStatement(st)
-	r := consumeRows(rows, st)
-	return r
+	consumeRows(rows, st)
 }
 
 // Here we create a simple function that will take care of errors, helping with some code clean up
