@@ -27,6 +27,10 @@ type SQLData struct {
 }
 
 func Import() {
+
+	// clean neo
+	cleanNeo()
+
 	// get from sql
 	rows := getDataFromSQL()
 	var rowsData string
@@ -134,4 +138,17 @@ func loadIntoNeo4j(d *SQLData) {
 
 		stmt.Close()
 	}
+}
+
+func cleanNeo() {
+	query := `MATCH (n) DETACH DELETE (n)`
+
+	stmt := prepareStatement(query, conn)
+
+	_, err := stmt.ExecNeo(map[string]interface{}{})
+	if err != nil {
+		panic(query)
+	}
+
+	stmt.Close()
 }
