@@ -5,7 +5,6 @@ import (
 	"io"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
-	"github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
 const (
@@ -60,36 +59,6 @@ func consumeRows(rows bolt.Rows, st bolt.Stmt) {
 			fmt.Printf("%+v\n", row) // Prints all paths
 		}
 	}
-}
-func consumePathData(rows bolt.Rows, st bolt.Stmt) []graph.Path {
-	// Here we loop through the rows until we get the metadata object
-	// back, meaning the row stream has been fully consumed
-
-	var err error
-	err = nil
-	data := []graph.Path{}
-	for err == nil {
-		var row []interface{}
-		row, _, err = rows.NextNeo()
-		if err != nil && err != io.EOF {
-			panic(err)
-		} else if err != io.EOF {
-			// fmt.Printf("PATH: %#v\n", row) // Prints all paths
-			// for _, r := range row {
-			// 	data = append(data, r.(graph.Path))
-			// }
-			data = append(data, row[0].(graph.Path))
-		}
-	}
-	st.Close()
-	return data
-}
-
-func getPathData(query string) []graph.Path {
-	st := prepareStatement(query, conn)
-	rows := queryStatement(st)
-	p := consumePathData(rows, st)
-	return p
 }
 
 func getRowData(query string) {
